@@ -12,7 +12,7 @@ public sealed class BeerTypeBottling
     private readonly IHostApplicationLifetime _lifetime;
     private readonly Channel<IBreweryEvent> _channel;
     private readonly FermentationQueue _fermentationQueue;
-    private List<Guid> _currentCase;
+    private readonly ShippingQueue _shippingQueue;
     private Task? _receiveLoop;
     private Task? _fermentationLoop;
 
@@ -27,9 +27,9 @@ public sealed class BeerTypeBottling
             SingleWriter = true,
         });
         _fermentationQueue = new FermentationQueue();
+        _shippingQueue = new ShippingQueue();
         _receiveLoop = null;
         _fermentationLoop = null;
-        _currentCase = new (24);
     }
 
     public void Start()
@@ -112,20 +112,25 @@ public sealed class BeerTypeBottling
                 continue;
             }
 
-            await _client.ShipAsync(bottle.Id);
+            Console.WriteLine($"Storing bottle for shipping - queue={_shippingQueue.Count}");
+            _shippingQueue.Store(bottle);
 
-            //else
-            //{
-            //    //_currentCase.Add(bottle.Id);
-            //    //if (_currentCase.Count == 24)
-            //    //{
-            //    //    var shipped = await _client.CaseAsync(new Case()
-            //    //    {
-            //    //        BottleIds = _currentCase.ToArray(),
-            //    //    });
-            //    //    _currentCase.Clear();
-            //    //}
-            //}
+            if (_shippingQueue.Count == 24)
+            {
+                var batch = _shippingQueue.TryGetBottles();
+                var shipped = await _client.CaseAsync(new Case()
+                {
+                    BottleIds = batch.Select(b => b.Id).ToArray(),
+                });
+                Console.WriteLine($"Shipped case of bottles");
+            }
+
+            while (_shippingQueue.ShouldShipFrontBottle)
+            {
+                var shippableBottle = _shippingQueue.GetBottle();
+                await _client.ShipAsync(shippableBottle.Id);
+                Console.WriteLine($"Shipped single bottle");
+            }
         }
     }
 }

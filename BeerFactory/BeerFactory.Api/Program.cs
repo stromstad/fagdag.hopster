@@ -1,3 +1,4 @@
+using BeerFactory;
 using Hopster;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +9,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton<Client>((sp) =>
+{
+    var httpClient = new HttpClient();
+    httpClient.DefaultRequestHeaders.Add("apikey", "NQju7ZCKxEc7BhWEKwgc7Ll97i4Su7ic6zJx2JyLleo=");
+    return new Client("http://hopster.m07039.clients.dev.nrk.no", httpClient);
+});
+builder.Services.AddSingleton<Bottling>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -17,9 +26,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/bottles", ([FromBody] Bottle bottle) =>
+app.MapPost("/bottles", async ([FromBody] Bottle bottle, [FromServices] Bottling bottling) =>
 {
-    Console.WriteLine("Test");
+    Console.WriteLine($"Received bottle on HTTP");
+    await bottling.BottleReceived(new BottleReceived(bottle));
 })
 .WithName("Bottles");
 

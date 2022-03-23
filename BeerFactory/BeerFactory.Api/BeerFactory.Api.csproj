@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BeerFactory\BeerFactory.csproj" />
     <ProjectReference Include="..\Hopster.Client\Hopster.Client.csproj" />
   </ItemGroup>
 

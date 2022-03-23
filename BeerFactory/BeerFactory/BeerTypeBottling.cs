@@ -103,7 +103,7 @@ public sealed class BeerTypeBottling
 
             if (bottle is null)
             {
-                await Task.Delay(1000, stoppingToken);
+                await Task.Delay(1000);
                 continue;
             }
 
@@ -128,9 +128,34 @@ public sealed class BeerTypeBottling
             while (_shippingQueue.ShouldShipFrontBottle)
             {
                 var shippableBottle = _shippingQueue.GetBottle();
+
+                var now = DateTimeOffset.UtcNow.AddSeconds(0.1);
+                if (shippableBottle.ConsumeBefore.HasValue && shippableBottle.ConsumeBefore.Value < now)
+                {
+                    continue;
+                }
+
                 await _client.ShipAsync(shippableBottle.Id);
-                Console.WriteLine($"Shipped single bottle");
+                var timeLeft = shippableBottle.ConsumeBefore.HasValue ? 
+                    (shippableBottle.ConsumeBefore.Value - now).TotalSeconds :
+                    -1;    
+                Console.WriteLine($"Shipped single bottle {BeerType} {timeLeft}");
             }
+        }
+
+        while (_shippingQueue.TryGetBottle(out var restBottle))
+        {
+            var now = DateTimeOffset.UtcNow.AddSeconds(0.1);
+            if (restBottle.ConsumeBefore.HasValue && restBottle.ConsumeBefore.Value < now)
+            {
+                continue;
+            }
+
+            await _client.ShipAsync(restBottle.Id);
+            var timeLeft = restBottle.ConsumeBefore.HasValue ?
+                (restBottle.ConsumeBefore.Value - now).TotalSeconds :
+                -1;
+            Console.WriteLine($"Shipped single bottle on exit {BeerType} {timeLeft}");
         }
     }
 }

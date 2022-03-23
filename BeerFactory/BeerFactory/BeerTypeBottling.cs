@@ -80,7 +80,7 @@ public sealed class BeerTypeBottling
                         }
 
                         var newBottle = await _client.FillbottleAsync(bottle.Id);
-                        if (IsOoops(bottle)) break;
+                        if (IsOoops(newBottle)) break;
                         // check newBottle state
 
                         Console.WriteLine($"Fermenting bottle {bottle.Id} {BeerType}");

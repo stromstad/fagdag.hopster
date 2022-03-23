@@ -1,8 +1,12 @@
 using BeerFactory;
 using Hopster;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(k => k.Listen(IPAddress.Any, 5000));
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -26,8 +30,16 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapPost("/bottles", async ([FromBody] Bottle bottle, [FromServices] Bottling bottling) =>
+app.MapPost("/bottles", async (HttpContext context, [FromServices] Bottling bottling) =>
 {
+    var bottle = await context.Request.ReadFromJsonAsync<Bottle>(
+        new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new JsonStringEnumConverter() },
+            AllowTrailingCommas = true,
+            ReadCommentHandling = JsonCommentHandling.Skip
+        });
     Console.WriteLine($"Received bottle on HTTP");
     await bottling.BottleReceived(new BottleReceived(bottle));
 })

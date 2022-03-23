@@ -30,16 +30,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+var serializerOptions = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    Converters = { new JsonStringEnumConverter() },
+    AllowTrailingCommas = true,
+    ReadCommentHandling = JsonCommentHandling.Skip
+};
+
 app.MapPost("/bottles", async (HttpContext context, [FromServices] Bottling bottling) =>
 {
-    var bottle = await context.Request.ReadFromJsonAsync<Bottle>(
-        new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            Converters = { new JsonStringEnumConverter() },
-            AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip
-        });
+    var bottle = await context.Request.ReadFromJsonAsync<Bottle>(serializerOptions);
     Console.WriteLine($"Received bottle on HTTP");
     await bottling.BottleReceived(new BottleReceived(bottle));
 })

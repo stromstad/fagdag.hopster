@@ -1,4 +1,5 @@
 ﻿using Hopster;
+using System.Diagnostics.CodeAnalysis;
 
 namespace BeerFactory;
 
@@ -25,6 +26,8 @@ public sealed class ShippingQueue
     }
 
     public Bottle GetBottle() => _queue.Dequeue();
+
+    public bool TryGetBottle([MaybeNullWhen(false)] out Bottle bottle) => _queue.TryDequeue(out bottle, out _);
 
     public IEnumerable<Bottle> TryGetBottles()
     {

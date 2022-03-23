@@ -50,16 +50,23 @@ public class Bottling
     {
         var stoppingToken = _lifetime.ApplicationStopping;
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            await Task.Delay(1000);
-
-            var state = await _client.StateAsync();
-            if (state == ConveyorBeltState.Crashed || state == ConveyorBeltState.Stopped)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                Console.WriteLine("Conveyor belt crashed, fixing");
-                await _client.FixAsync();
+                await Task.Delay(1000);
+
+                var state = await _client.StateAsync();
+                if (state == ConveyorBeltState.Crashed || state == ConveyorBeltState.Stopped)
+                {
+                    Console.WriteLine("Conveyor belt crashed, fixing");
+                    await _client.FixAsync();
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
         }
     }
 
@@ -67,74 +74,81 @@ public class Bottling
     {
         var stoppingToken = _lifetime.ApplicationStopping;
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            var queues = new List<ShippingQueue>();
-            foreach (var kvp in _beerTypes)
-                queues.Add(kvp.Value.ShippingQueue);
-
-            var bottles = new List<Bottle>(24);
-            foreach (var queue in queues)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                while (queue.TryGetShortExpiryBottle(out var shippableBottle))
-                {
-                    Console.WriteLine($"Picking short expiry bottle for {shippableBottle.BeerType}");
-                    bottles.Add(shippableBottle);
-                }
-            }
+                var queues = new List<ShippingQueue>();
+                foreach (var kvp in _beerTypes)
+                    queues.Add(kvp.Value.ShippingQueue);
 
-            foreach (var batch in bottles.Where(b => !b.ConsumeBefore.HasValue || b.ConsumeBefore.Value > DateTimeOffset.UtcNow).Chunk(24))
-            {
-                if (batch.Length == 24)
+                var bottles = new List<Bottle>(24);
+                foreach (var queue in queues)
                 {
-                    Console.WriteLine($"Shipping case of short expiry bottles");
-                    await _client.CaseAsync(new Case
+                    while (queue.TryGetShortExpiryBottle(out var shippableBottle))
                     {
-                        BottleIds = batch.Select(b => b.Id).ToArray(),
-                    });
+                        Console.WriteLine($"Picking short expiry bottle for {shippableBottle.BeerType}");
+                        bottles.Add(shippableBottle);
+                    }
                 }
-                else
+
+                foreach (var batch in bottles.Where(b => !b.ConsumeBefore.HasValue || b.ConsumeBefore.Value > DateTimeOffset.UtcNow).Chunk(24))
                 {
-                    Console.WriteLine($"Shipping smaller batch of short expiry bottles, count={batch.Length}");
-                    await Task.WhenAll(batch.Select(b => _client.ShipAsync(b.Id)));
+                    if (batch.Length == 24)
+                    {
+                        Console.WriteLine($"Shipping case of short expiry bottles");
+                        await _client.CaseAsync(new Case
+                        {
+                            BottleIds = batch.Select(b => b.Id).ToArray(),
+                        });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Shipping smaller batch of short expiry bottles, count={batch.Length}");
+                        await Task.WhenAll(batch.Select(b => _client.ShipAsync(b.Id)));
+                    }
                 }
+
+
+                await Task.Delay(1000);
             }
 
+            {
+                var queues = new List<ShippingQueue>();
+                foreach (var kvp in _beerTypes)
+                    queues.Add(kvp.Value.ShippingQueue);
 
-            await Task.Delay(1000);
+                var bottles = new List<Bottle>(24);
+                foreach (var queue in queues)
+                {
+                    while (queue.TryGetShortExpiryBottle(out var shippableBottle))
+                    {
+                        Console.WriteLine($"Picking short expiry bottle for {shippableBottle.BeerType}");
+                        bottles.Add(shippableBottle);
+                    }
+                }
+
+                foreach (var batch in bottles.Where(b => !b.ConsumeBefore.HasValue || b.ConsumeBefore.Value > DateTimeOffset.UtcNow).Chunk(24))
+                {
+                    if (batch.Length == 24)
+                    {
+                        Console.WriteLine($"EXIT Shipping case of short expiry bottles");
+                        await _client.CaseAsync(new Case
+                        {
+                            BottleIds = batch.Select(b => b.Id).ToArray(),
+                        });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"EXIT Shipping smaller batch of short expiry bottles, count={batch.Length}");
+                        await Task.WhenAll(batch.Select(b => _client.ShipAsync(b.Id)));
+                    }
+                }
+            }
         }
-
+        catch (Exception ex)
         {
-            var queues = new List<ShippingQueue>();
-            foreach (var kvp in _beerTypes)
-                queues.Add(kvp.Value.ShippingQueue);
-
-            var bottles = new List<Bottle>(24);
-            foreach (var queue in queues)
-            {
-                while (queue.TryGetShortExpiryBottle(out var shippableBottle))
-                {
-                    Console.WriteLine($"Picking short expiry bottle for {shippableBottle.BeerType}");
-                    bottles.Add(shippableBottle);
-                }
-            }
-
-            foreach (var batch in bottles.Where(b => !b.ConsumeBefore.HasValue || b.ConsumeBefore.Value > DateTimeOffset.UtcNow).Chunk(24))
-            {
-                if (batch.Length == 24)
-                {
-                    Console.WriteLine($"EXIT Shipping case of short expiry bottles");
-                    await _client.CaseAsync(new Case
-                    {
-                        BottleIds = batch.Select(b => b.Id).ToArray(),
-                    });
-                }
-                else
-                {
-                    Console.WriteLine($"EXIT Shipping smaller batch of short expiry bottles, count={batch.Length}");
-                    await Task.WhenAll(batch.Select(b => _client.ShipAsync(b.Id)));
-                }
-            }
+            Console.Error.WriteLine(ex);
         }
     }
 }

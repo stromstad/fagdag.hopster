@@ -60,85 +60,100 @@ public sealed class BeerTypeBottling
     async Task ReceiveLoop()
     {
         var stoppingToken = _lifetime.ApplicationStopping;
-        while (await _channel.Reader.WaitToReadAsync(stoppingToken))
+        try
         {
-            await foreach (var @event in _channel.Reader.ReadAllAsync(stoppingToken))
+            while (await _channel.Reader.WaitToReadAsync(stoppingToken))
             {
-                switch (@event)
+                await foreach (var @event in _channel.Reader.ReadAllAsync(stoppingToken))
                 {
-                    case BottleReceived e:
-                        var bottle = e.Bottle;
+                    switch (@event)
+                    {
+                        case BottleReceived e:
+                            var bottle = e.Bottle;
 
-                        Console.WriteLine($"Processing received bottle {bottle.Id} {BeerType}");
+                            Console.WriteLine($"Processing received bottle {bottle.Id} {BeerType}");
 
-                        if (IsOoops(bottle)) break;
+                            if (IsOoops(bottle)) break;
 
-                        var state = await _client.LevelAsync(BeerType);
-                        Console.WriteLine($"{BeerType} has {state} level");
-                        if (state < bottle.MaxContent)
-                        {
-                            Console.WriteLine($"Filling container before filling {bottle.Id} {BeerType}");
-                            await _client.FillContainerAsync(BeerType);
-                        }
-
-                        Bottle newBottle;
-                        var isBroken = false;
-                        var iteration = 0;
-                        do
-                        {
-                            iteration++;
-                            newBottle = await _client.FillbottleAsync(bottle.Id);
-                            if (IsOoops(newBottle))
+                            var state = await _client.LevelAsync(BeerType);
+                            Console.WriteLine($"{BeerType} has {state} level");
+                            if (state < bottle.MaxContent)
                             {
-                                isBroken = true;
-                                break;
+                                Console.WriteLine($"Filling container before filling {bottle.Id} {BeerType}");
+                                await _client.FillContainerAsync(BeerType);
                             }
-                        }
-                        while (iteration < 5 && (newBottle.CorkedTime is null || newBottle.Content < newBottle.MaxContent));
-                        if (isBroken) break;
 
-                        Console.WriteLine($"Fermenting bottle {bottle.Id} {BeerType}");
-                        await _fermentationQueue.Ferment(newBottle);
-                        // state broken -> recycle
-                        // state good -> fillbottle -> ferment
-                        break;
+                            Bottle newBottle;
+                            var isBroken = false;
+                            var iteration = 0;
+                            do
+                            {
+                                iteration++;
+                                newBottle = await _client.FillbottleAsync(bottle.Id);
+                                if (IsOoops(newBottle))
+                                {
+                                    isBroken = true;
+                                    break;
+                                }
+                            }
+                            while (iteration < 5 && (newBottle.CorkedTime is null || newBottle.Content < newBottle.MaxContent));
+                            if (isBroken) break;
+
+                            Console.WriteLine($"Fermenting bottle {bottle.Id} {BeerType}");
+                            await _fermentationQueue.Ferment(newBottle);
+                            // state broken -> recycle
+                            // state good -> fillbottle -> ferment
+                            break;
+                    }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
         }
     }
 
     async Task FermentationLoop()
     {
         var stoppingToken = _lifetime.ApplicationStopping;
-        Bottle? bottle;
-        while (!stoppingToken.IsCancellationRequested)
+
+        try
         {
-            bottle = await _fermentationQueue.TryGetFermentedBottle();
-
-            if (bottle is null)
+            Bottle? bottle;
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(1000);
-                continue;
-            }
+                bottle = await _fermentationQueue.TryGetFermentedBottle();
 
-            if (bottle.ConsumeBefore.HasValue && bottle.ConsumeBefore.Value < DateTimeOffset.UtcNow)
-            {
-                Console.WriteLine($"Expired {BeerType}");
-                continue;
-            }
-
-            Console.WriteLine($"Storing {BeerType} bottle for shipping - queue={_shippingQueue.Count}");
-            _shippingQueue.Store(bottle);
-
-            var batch = _shippingQueue.TryGetCase();
-            if (batch is not null)
-            {
-                var shipped = await _client.CaseAsync(new Case()
+                if (bottle is null)
                 {
-                    BottleIds = batch.Select(b => b.Id).ToArray(),
-                });
-                Console.WriteLine($"Shipped case of bottles");
+                    await Task.Delay(1000);
+                    continue;
+                }
+
+                if (bottle.ConsumeBefore.HasValue && bottle.ConsumeBefore.Value < DateTimeOffset.UtcNow)
+                {
+                    Console.WriteLine($"Expired {BeerType}");
+                    continue;
+                }
+
+                Console.WriteLine($"Storing {BeerType} bottle for shipping - queue={_shippingQueue.Count}");
+                _shippingQueue.Store(bottle);
+
+                var batch = _shippingQueue.TryGetCase();
+                if (batch is not null)
+                {
+                    var shipped = await _client.CaseAsync(new Case()
+                    {
+                        BottleIds = batch.Select(b => b.Id).ToArray(),
+                    });
+                    Console.WriteLine($"Shipped case of bottles");
+                }
             }
+        }
+        catch(Exception ex)
+        {
+            Console.Error.WriteLine(ex);
         }
     }
 }

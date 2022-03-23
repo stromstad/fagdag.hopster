@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32112.339
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeerFactory", "BeerFactory\BeerFactory.csproj", "{13FBA71C-CFDC-48CE-9499-460A1EFDC7C2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeerFactory", "BeerFactory\BeerFactory.csproj", "{13FBA71C-CFDC-48CE-9499-460A1EFDC7C2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hopster.Client", "Hopster.Client\Hopster.Client.csproj", "{C44605F0-E16B-4D2D-82E8-517FFDCD866A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hopster.Client", "Hopster.Client\Hopster.Client.csproj", "{C44605F0-E16B-4D2D-82E8-517FFDCD866A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeerFactory.Api", "BeerFactory.Api\BeerFactory.Api.csproj", "{A6029E0B-84C5-48FA-AC1F-E5AF12964B09}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{C44605F0-E16B-4D2D-82E8-517FFDCD866A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C44605F0-E16B-4D2D-82E8-517FFDCD866A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C44605F0-E16B-4D2D-82E8-517FFDCD866A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6029E0B-84C5-48FA-AC1F-E5AF12964B09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6029E0B-84C5-48FA-AC1F-E5AF12964B09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6029E0B-84C5-48FA-AC1F-E5AF12964B09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6029E0B-84C5-48FA-AC1F-E5AF12964B09}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

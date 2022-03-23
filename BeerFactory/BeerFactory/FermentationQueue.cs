@@ -88,13 +88,13 @@ public sealed class ShippingQueue
         }
     }
 
-    public IEnumerable<Bottle> TryGetBottles()
+    public IEnumerable<Bottle>? TryGetCase()
     {
         _lock.Wait();
         try
         {
-            if (_queue.Count == 0)
-                return Array.Empty<Bottle>();
+            if (_queue.Count < 24)
+                return null;
 
             var bottles = new List<Bottle>();
             while (bottles.Count < 24 && _queue.TryDequeue(out var bottle, out var prio))

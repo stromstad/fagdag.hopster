@@ -123,15 +123,16 @@ public sealed class BeerTypeBottling
 
             if (bottle.ConsumeBefore.HasValue && bottle.ConsumeBefore.Value < DateTimeOffset.UtcNow)
             {
+                Console.WriteLine($"Expired {BeerType}");
                 continue;
             }
 
             Console.WriteLine($"Storing {BeerType} bottle for shipping - queue={_shippingQueue.Count}");
             _shippingQueue.Store(bottle);
 
-            if (_shippingQueue.Count == 24)
+            var batch = _shippingQueue.TryGetCase();
+            if (batch is not null)
             {
-                var batch = _shippingQueue.TryGetBottles();
                 var shipped = await _client.CaseAsync(new Case()
                 {
                     BottleIds = batch.Select(b => b.Id).ToArray(),

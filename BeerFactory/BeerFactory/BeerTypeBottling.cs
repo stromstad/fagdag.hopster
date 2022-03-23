@@ -16,6 +16,8 @@ public sealed class BeerTypeBottling
     private Task? _receiveLoop;
     private Task? _fermentationLoop;
 
+    public ShippingQueue ShippingQueue => _shippingQueue;
+
     public BeerTypeBottling(string beerType, Client client, IHostApplicationLifetime lifetime)
     {
         BeerType = beerType;
@@ -136,38 +138,6 @@ public sealed class BeerTypeBottling
                 });
                 Console.WriteLine($"Shipped case of bottles");
             }
-
-            while (_shippingQueue.ShouldShipFrontBottle)
-            {
-                var shippableBottle = _shippingQueue.GetBottle();
-
-                var now = DateTimeOffset.UtcNow.AddSeconds(0.1);
-                if (shippableBottle.ConsumeBefore.HasValue && shippableBottle.ConsumeBefore.Value < now)
-                {
-                    continue;
-                }
-
-                await _client.ShipAsync(shippableBottle.Id);
-                var timeLeft = shippableBottle.ConsumeBefore.HasValue ? 
-                    (shippableBottle.ConsumeBefore.Value - now).TotalSeconds :
-                    -1;    
-                Console.WriteLine($"Shipped single bottle {BeerType} {timeLeft}");
-            }
-        }
-
-        while (_shippingQueue.TryGetBottle(out var restBottle))
-        {
-            var now = DateTimeOffset.UtcNow.AddSeconds(0.1);
-            if (restBottle.ConsumeBefore.HasValue && restBottle.ConsumeBefore.Value < now)
-            {
-                continue;
-            }
-
-            await _client.ShipAsync(restBottle.Id);
-            var timeLeft = restBottle.ConsumeBefore.HasValue ?
-                (restBottle.ConsumeBefore.Value - now).TotalSeconds :
-                -1;
-            Console.WriteLine($"Shipped single bottle on exit {BeerType} {timeLeft}");
         }
     }
 }

@@ -6,41 +6,108 @@ namespace BeerFactory;
 public sealed class ShippingQueue
 {
     private readonly PriorityQueue<Bottle, DateTimeOffset> _queue;
+    private readonly SemaphoreSlim _lock;
 
     public ShippingQueue()
     {
         _queue = new PriorityQueue<Bottle, DateTimeOffset>();
+        _lock = new SemaphoreSlim(1, 1);
     }
 
-    public int Count => _queue.Count;
+    public int Count
+    {
+        get
+        {
+            _lock.Wait();
+            try
+            {
+                return _queue.Count;
+            } 
+            finally
+            {
+                _lock.Release();
+            }
+        }
+    }
 
-    public bool ShouldShipFrontBottle => _queue.TryPeek(out _, out var priority) &&
-        priority < DateTimeOffset.UtcNow.AddSeconds(20);
+    public bool TryGetShortExpiryBottle([MaybeNullWhen(false)] out Bottle bottle)
+    {
+        _lock.Wait();
+        try
+        {
+            var should = _queue.TryPeek(out bottle, out var priority) &&
+                priority < DateTimeOffset.UtcNow.AddSeconds(5);
+            if (should) _queue.Dequeue();
+            return should;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
 
     public void Store(Bottle bottle)
     {
-        var priority = bottle.ConsumeBefore.HasValue ?
-            bottle.ConsumeBefore.Value :
-            DateTimeOffset.UtcNow.AddDays(30);
-        _queue.Enqueue(bottle, priority);
+        _lock.Wait();
+        try
+        {
+            var priority = bottle.ConsumeBefore.HasValue ?
+                bottle.ConsumeBefore.Value :
+                DateTimeOffset.UtcNow.AddDays(30);
+            _queue.Enqueue(bottle, priority);
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
-    public Bottle GetBottle() => _queue.Dequeue();
+    public Bottle GetBottle()
+    {
+        _lock.Wait();
+        try
+        {
+            return _queue.Dequeue();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
 
-    public bool TryGetBottle([MaybeNullWhen(false)] out Bottle bottle) => _queue.TryDequeue(out bottle, out _);
+    public bool TryGetBottle([MaybeNullWhen(false)] out Bottle bottle)
+    {
+        _lock.Wait();
+        try
+        {
+            return _queue.TryDequeue(out bottle, out _);
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
 
     public IEnumerable<Bottle> TryGetBottles()
     {
-        if (_queue.Count == 0)
-            return Array.Empty<Bottle>();
-
-        var bottles = new List<Bottle>();
-        while (bottles.Count < 24 && _queue.TryDequeue(out var bottle, out var prio))
+        _lock.Wait();
+        try
         {
-            bottles.Add(bottle);
-        }
+            if (_queue.Count == 0)
+                return Array.Empty<Bottle>();
 
-        return bottles;
+            var bottles = new List<Bottle>();
+            while (bottles.Count < 24 && _queue.TryDequeue(out var bottle, out var prio))
+            {
+                bottles.Add(bottle);
+            }
+
+            return bottles;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 }
 

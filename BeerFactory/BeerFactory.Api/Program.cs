@@ -48,7 +48,6 @@ var serializerOptions = new JsonSerializerOptions
 app.MapPost("/bottles", async (HttpContext context, [FromServices] Bottling bottling) =>
 {
     var bottle = await context.Request.ReadFromJsonAsync<Bottle>(serializerOptions);
-    Console.WriteLine($"Received bottle on HTTP");
     await bottling.BottleReceived(new BottleReceived(bottle));
 })
 .WithName("Bottles");

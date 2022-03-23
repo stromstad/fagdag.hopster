@@ -79,9 +79,21 @@ public sealed class BeerTypeBottling
                             await _client.FillContainerAsync(BeerType);
                         }
 
-                        var newBottle = await _client.FillbottleAsync(bottle.Id);
-                        if (IsOoops(newBottle)) break;
-                        // check newBottle state
+                        Bottle newBottle;
+                        var isBroken = false;
+                        var iteration = 0;
+                        do
+                        {
+                            iteration++;
+                            newBottle = await _client.FillbottleAsync(bottle.Id);
+                            if (IsOoops(newBottle))
+                            {
+                                isBroken = true;
+                                break;
+                            }
+                        }
+                        while (iteration < 5 && (newBottle.CorkedTime is null || newBottle.Content < newBottle.MaxContent));
+                        if (isBroken) break;
 
                         Console.WriteLine($"Fermenting bottle {bottle.Id} {BeerType}");
                         await _fermentationQueue.Ferment(newBottle);

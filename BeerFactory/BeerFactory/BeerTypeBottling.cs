@@ -124,7 +124,7 @@ public sealed class BeerTypeBottling
                 continue;
             }
 
-            Console.WriteLine($"Storing bottle for shipping - queue={_shippingQueue.Count}");
+            Console.WriteLine($"Storing {BeerType} bottle for shipping - queue={_shippingQueue.Count}");
             _shippingQueue.Store(bottle);
 
             if (_shippingQueue.Count == 24)
